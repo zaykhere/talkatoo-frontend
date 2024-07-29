@@ -1,13 +1,79 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { ChatState } from '../Context/ChatProvider'
-import { Box, IconButton, Text } from '@chakra-ui/react';
+import { Box, FormControl, IconButton, Input, Spinner, Text, useToast } from '@chakra-ui/react';
 import { IoMdArrowBack } from "react-icons/io";
 import { getSender, getSenderFull } from '../utils/ChatLogics';
 import ProfileModal from './misc/ProfileModal';
 import UpdateGroupChatModal from './misc/UpdateGroupChatModal';
+import API from '../api/API';
+import ScrollableChat from './ScrollableChat';
 
 const SingleChat = ({fetchAgain, setFetchAgain}) => {
   const {user, selectedChat, setSelectedChat} = ChatState();
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [newMessage, setNewMessage] = useState();
+
+  const toast = useToast();
+
+  const fetchMessages = async() => {
+    if(!selectedChat) return;
+
+    try {
+      setLoading(true);
+      const {data} = await API.get(`/message/${selectedChat?._id}`);
+      setMessages(data);
+      
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to Load the Messages",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom",
+      });
+    }
+    finally{
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchMessages();
+  }, [selectedChat])
+  
+
+  const sendMessage = async (e) => {
+    if(e.key === "Enter" && newMessage) {
+      try {
+        setNewMessage("");
+
+        const {data} = await API.post('/message', {
+          content: newMessage,
+          chatId: selectedChat?._id
+        });
+
+        setMessages([...messages, data]);
+
+      } catch (error) {
+        toast({
+          title: "Error Occured!",
+          description: "Failed to send the Message",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "bottom",
+        });
+      }
+    }
+  }
+
+  const typingHandler = (e) => {
+    setNewMessage(e.target.value);
+
+    // typing indicator logic 
+  }
 
   return (
     <>
@@ -36,7 +102,7 @@ const SingleChat = ({fetchAgain, setFetchAgain}) => {
             ): (
               <>
                 {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+                <UpdateGroupChatModal fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} fetchMessages={fetchMessages} />
               </>
             )}
           </Text>
@@ -49,7 +115,39 @@ const SingleChat = ({fetchAgain, setFetchAgain}) => {
             h="100%"
             borderRadius="lg"
             overflowY="hidden">
-            {/* Messages here */}
+            {loading ? (
+              <Spinner 
+              size="xl"
+                w={20}
+                h={20}
+                alignSelf="center"
+                margin="auto"
+              />
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: 'scroll',
+                scrollbarWidth: 'none'
+              }}>
+                <ScrollableChat messages={messages} />
+
+              </div>
+            )}
+
+            <FormControl onKeyDown={sendMessage}
+              id="first-name"
+              isRequired
+              mt={3}>
+                 <Input
+                variant="filled"
+                bg="#E0E0E0"
+                placeholder="Enter a message.."
+                value={newMessage}
+                onChange={typingHandler}
+              />
+            </FormControl>
+
           </Box>
         </>
       ) : (
