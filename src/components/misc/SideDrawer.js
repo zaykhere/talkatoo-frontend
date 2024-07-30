@@ -7,6 +7,9 @@ import { useHistory } from 'react-router-dom';
 import API from '../../api/API';
 import ChatLoading from '../ChatLoading';
 import UserListItem from '../UserAvatar/UserListItem';
+import { getSender } from '../../utils/ChatLogics';
+import NotificationBadge from 'react-notification-badge/lib/components/NotificationBadge';
+import { Effect } from 'react-notification-badge';
 
 const SideDrawer = () => {
   const [search, setSearch] = useState("");
@@ -17,7 +20,7 @@ const SideDrawer = () => {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure()
 
-  const {user, setSelectedChat, chats, setChats} = ChatState();
+  const {user, setSelectedChat, chats, setChats, notifications, setNotifications} = ChatState();
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
@@ -99,9 +102,25 @@ const SideDrawer = () => {
       <Box display={'flex'} alignItems={'center'}> 
         <Menu>
           <MenuButton p={1}>
+            <NotificationBadge count={notifications.length} effect={Effect.SCALE}  />
             <FaBell fontSize={'1.5rem'} style={{margin: '16px'}} />
           </MenuButton>
-          {/* <MenuList></MenuList> */}
+          <MenuList pl={2}>
+            {!notifications.length && "No New Messages"}
+            {notifications.map((notif) => (
+                <MenuItem
+                  key={notif._id}
+                  onClick={() => {
+                    setSelectedChat(notif.chat);
+                    setNotifications(notifications.filter((n) => n !== notif));
+                  }}
+                >
+                  {notif.chat.isGroupChat
+                    ? `New Message in ${notif.chat.chatName}`
+                    : `New Message from ${getSender(user, notif.chat.users)}`}
+                </MenuItem>
+              ))}
+          </MenuList>
         </Menu>
         <Menu>
           <MenuButton p={1} as={Button} rightIcon={<FaChevronDown />}>
